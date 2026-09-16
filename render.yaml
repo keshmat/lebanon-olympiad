@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: lebanon-olympiad
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /round/1
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_PASSWORD
+        sync: false # entered once in the Render dashboard when the blueprint is created
+      - key: DATA_DIR
+        value: /data

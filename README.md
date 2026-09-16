@@ -32,4 +32,4 @@ bun test
 
 ## Deploy
 
-Any host that runs `bun server.ts` with a persistent volume at `data/` (Fly, Railway, a VPS). Set `ADMIN_PASSWORD`.
+Render: `render.yaml` is a Blueprint (Docker, starter plan, 1 GB disk at `/data`). In the Render dashboard choose New → Blueprint, pick this repo, and enter `ADMIN_PASSWORD` when prompted. Any other host works too: run the Docker image with a volume at `/data` and `ADMIN_PASSWORD` set.
