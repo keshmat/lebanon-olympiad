@@ -16,18 +16,20 @@ const API = "https://lichess.org/api/broadcast";
 
 // ---------- lichess ----------
 type Player = { fed?: string; name?: string; team?: string };
-type Game = { id: string; name: string; status: string; players: Player[] };
+type Game = { id: string; name: string; status: string; fen?: string; players: Player[] };
 type RoundJson = { round: { id: string; name: string }; tour: { id: string; name: string }; games: Game[] };
 type TourJson = { tour: { id: string; name: string }; rounds: { id: string; name: string; startsAt?: number }[]; group?: { tours: { id: string; name: string }[] } };
 
 // ponytail: one small cache. On fetch failure the last good value is served (stale) and the URL is not retried
 // before ttl elapses, so a Lichess 429 never turns into a retry storm. Lichess asks for sequential requests: callers loop, no Promise.all.
 const cache = new Map<string, { t: number; p: Promise<any>; ok?: any }>();
+let slot = 0; // real fetches are spaced ≥200 ms apart; a cold start makes ~18 and Lichess 429s a tight burst
+const paced = (url: string) => ((slot = Math.max(slot + 200, Date.now())), Bun.sleep(slot - Date.now()).then(() => fetch(url)));
 export function get<T>(url: string, ttl = 60_000): Promise<T> {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.t < ttl) return hit.p;
   const e = { t: Date.now(), ok: hit?.ok, p: undefined as unknown as Promise<T> };
-  e.p = fetch(url)
+  e.p = paced(url)
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Lichess ${r.status} for ${url}`))))
     .then((v) => (e.ok = v))
     .catch((err) => (e.ok !== undefined ? e.ok : Promise.reject(err)));
@@ -37,13 +39,14 @@ export function get<T>(url: string, ttl = 60_000): Promise<T> {
 const getRound = (id: string) => get<RoundJson>(`${API}/-/-/${id}`);
 const getTour = (id: string) => get<TourJson>(`${API}/${id}`, 600_000);
 
-export type Board = { boardNo: number; roundId: string; gameId: string; name: string; status: string; tourName?: string };
-export const embedUrl = (b: Board) => `https://lichess.org/embed/broadcast/-/-/${b.roundId}/${b.gameId}`;
+export type Board = { boardNo: number; roundId: string; gameId: string; name: string; status: string; fen?: string; tourName?: string };
+const embedUrl = (b: Board) => `https://lichess.org/embed/broadcast/-/-/${b.roundId}/${b.gameId}`;
+const gameUrl = (b: Board) => `https://lichess.org/broadcast/-/-/${b.roundId}/${b.gameId}`;
 
 export function pickFed(games: Game[], fed: string, roundId: string): Board[] {
   return games
     .filter((g) => g.players.some((p) => p.fed === fed))
-    .map((g, i) => ({ boardNo: i + 1, roundId, gameId: g.id, name: g.name, status: g.status }));
+    .map((g, i) => ({ boardNo: i + 1, roundId, gameId: g.id, name: g.name, status: g.status, fen: g.fen }));
 }
 
 export function parseRef(s: string): { roundId: string; gameId: string } | null {
@@ -103,7 +106,7 @@ async function boards(n: number): Promise<RoundData> {
         for (const [i, ref] of ov[s]!.entries()) {
           const r = await getRound(ref.roundId);
           const g = r.games.find((g) => g.id === ref.gameId);
-          bs.push({ boardNo: i + 1, ...ref, name: g?.name ?? "(game not found in round)", status: g?.status ?? "?", tourName: r.tour.name });
+          bs.push({ boardNo: i + 1, ...ref, name: g?.name ?? "(game not found in round)", status: g?.status ?? "?", fen: g?.fen, tourName: r.tour.name });
         }
         out[s] = { boards: bs, manual: true };
       } else {
@@ -117,46 +120,70 @@ async function boards(n: number): Promise<RoundData> {
   }
   return out;
 }
+// FENs are deliberately left out: the grid (and its iframes) must only re-render when a board or result changes.
 const hashOf = (d: RoundData) => String(Bun.hash(JSON.stringify(SECTIONS.map((s) => d[s].boards.map((b) => [b.gameId, b.status])))));
 
 // ---------- views ----------
 const CSS = `
-:root{color-scheme:light dark;font-family:system-ui,sans-serif}
-body{margin:0;padding:12px 16px;max-width:1800px;margin-inline:auto}
-h1{font-size:1.4rem;margin:.2rem 0 .6rem}
-nav a{display:inline-block;padding:.3rem .6rem;margin:.1rem;border-radius:6px;text-decoration:none;background:#8882;color:inherit}
-nav a[aria-current]{background:#c0392b;color:#fff}
-h2{font-size:1.1rem;margin:1.2rem 0 .5rem;display:flex;gap:.6rem;align-items:center}
-.badge{font-size:.7rem;padding:.1rem .45rem;border-radius:99px;background:#8883;font-weight:normal}
-.badge.manual{background:#e67e22;color:#fff}
-.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
-.card{display:flex;flex-direction:column;gap:.3rem}
-.card .cap{font-size:.85rem;display:flex;justify-content:space-between;gap:.5rem}
-.card .cap b{white-space:nowrap}
-.card iframe{width:100%;aspect-ratio:1/1.28;border:0;border-radius:8px;background:#8881}
-.muted{opacity:.7}
-.err{color:#c0392b}
+:root{--main-font:Georgia,"Iowan Old Style","Times New Roman",serif;--line-length:100rem}
+body{padding:.4rem 1rem .6rem}
+body>header{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem 1.5rem;margin:0 0 .2rem;padding:0;border:0;background:none}
+header h1{font-size:1.3rem;margin:0}
+nav a{display:inline-block;padding:.05rem .45rem;margin:.1rem .05rem;border-radius:4px;text-decoration:none;color:inherit}
+nav a[aria-current]{background:var(--accent);color:var(--bg)}
+body h2{font-size:1rem;margin:.4rem 0 .15rem;display:flex;gap:.6rem;align-items:baseline}
+h2 .chip{font-size:.7rem}
+/* ponytail: --h fits two rows of four on a desktop viewport. The Lichess embed needs ~92px above/below the board for
+   the player bars, so board width = --h - 92px. Below 900px --h is ignored and boards fill the width. */
+.grid{--h:min(calc((100vh - 13.5rem) / 2),calc((100vw - 6rem) / 4 - 1.5rem + 92px));display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem 1rem}
+.card{display:flex;flex-direction:column;gap:.1rem}
+.cap{font-size:.8rem;display:flex;gap:.5rem;align-items:baseline;white-space:nowrap;width:calc(var(--h) - 92px + 1.2rem)}
+.cap .name{overflow:hidden;text-overflow:ellipsis;flex:1}
+.cap .score{font-variant-numeric:tabular-nums;min-width:2.5em;text-align:right}
+.board{display:flex;gap:.3rem;height:var(--h)}
+.board iframe{height:100%;width:calc(var(--h) - 92px);border:0;border-radius:6px;background:var(--box-bg)}
+.eval{width:.6rem;border-radius:3px;background:#403d39;position:relative;overflow:hidden;flex:none}
+.eval::after{content:"";position:absolute;inset:auto 0 0 0;height:var(--w,50%);background:#f0ede6;transition:height .6s}
+@media (max-width:900px){.grid{--h:auto}.card{width:100%}.cap{width:auto}.board{height:auto}.board iframe{width:calc(100% - .9rem);aspect-ratio:1/1.28}}
+.muted{opacity:.7}.err{color:var(--bad-fg)}
 form.sec{display:grid;gap:.4rem;max-width:720px;margin-bottom:1.5rem}
-form.sec input{padding:.4rem;font:inherit}
-form.sec button{padding:.4rem .8rem;font:inherit;width:max-content}
 `;
 
-const layout = (title: string, body: any) => html`<!doctype html>
+// Stockfish 10 (60 KB js + 358 KB wasm, single-threaded, no COOP/COEP headers needed) in a worker.
+// The worker reads its wasm path from the URL hash, so a blob worker can point at the CDN.
+const EVAL_JS = `
+const base="https://cdn.jsdelivr.net/npm/stockfish@10.0.2/src/";
+const w=new Worker(URL.createObjectURL(new Blob(['importScripts("'+base+'stockfish.js")'],{type:"text/javascript"}))+"#"+base+"stockfish.wasm");
+let queue=[],cur=null;
+w.onmessage=e=>{const s=String(e.data),m=s.match(/score (cp|mate) (-?\\d+)/);if(m&&cur)cur.score=m;if(s.startsWith("bestmove")){paint(cur);cur=null;next()}};
+function next(){if(cur||!queue.length)return;cur=queue.shift();w.postMessage("position fen "+cur.fen);w.postMessage("go depth 12")}
+function paint({card,fen,score}){if(!score)return;let v=+score[2];if(fen.split(" ")[1]==="b")v=-v;
+  const mate=score[1]==="mate",pct=mate?(v>0?100:0):50+50*(2/(1+Math.exp(-0.004*v))-1);
+  card.querySelector(".eval").style.setProperty("--w",pct+"%");
+  card.querySelector(".score").textContent=mate?"M"+Math.abs(v):(v>0?"+":"")+(v/100).toFixed(1)}
+async function refresh(){const fens=await fetch("/round/"+document.body.dataset.round+"/fens").then(r=>r.json()).catch(()=>({}));
+  queue=Object.entries(fens).flatMap(([id,fen])=>{const card=document.querySelector('[data-game="'+id+'"]');return card?[{card,fen}]:[]});next()}
+refresh();setInterval(refresh,60000);document.addEventListener("htmx:afterSwap",refresh);
+`;
+
+const layout = (title: string, body: any, attrs = "") => html`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title}</title><script src="https://unpkg.com/htmx.org@2"></script><style>${raw(CSS)}</style></head>
-<body>${body}</body></html>`;
+<title>${title}</title><link rel="stylesheet" href="https://unpkg.com/missing.css@1.3.0"><script src="https://unpkg.com/htmx.org@2"></script><style>${raw(CSS)}</style></head>
+<body ${raw(attrs)}>${body}</body></html>`;
 
 const nav = (n: number, base = "/round") =>
   html`<nav>${Array.from({ length: ROUNDS }, (_, i) => i + 1).map((i) => html`<a href="${base}/${i}" ${i === n ? raw('aria-current="page"') : ""}>R${i}</a>`)}</nav>`;
 
+const sectionName = (d: SectionData) => d.boards[0]?.tourName?.split("|").slice(-2).join("|").trim();
+
 const section = (s: Section, d: SectionData) => html`
-<h2>${s === "open" ? "Open" : "Women"} <span class="badge ${d.manual ? "manual" : ""}">${d.manual ? "manual" : "auto"}</span>
-  ${d.boards[0]?.tourName ? html`<span class="badge">${d.boards[0].tourName.split("|").slice(-2).join("|").trim()}</span>` : ""}</h2>
+<h2>${s === "open" ? "Open" : "Women"} ${sectionName(d) ? html`<span class="chip">${sectionName(d)}</span>` : ""}</h2>
 ${d.error ? html`<p class="err">${d.error}</p>` : ""}
 ${d.boards.length
     ? html`<div class="grid">${d.boards.map(
-        (b) => html`<div class="card"><div class="cap"><b>Board ${b.boardNo}</b><span>${b.name}</span><b>${b.status}</b></div>
-<iframe src="${embedUrl(b)}" title="Board ${b.boardNo}: ${b.name}"></iframe></div>`,
+        (b) => html`<div class="card" data-game="${b.gameId}">
+<div class="cap"><b><a href="${gameUrl(b)}" target="_blank" rel="noopener">Board ${b.boardNo} ↗</a></b><span class="name">${b.name}</span><b>${b.status === "*" ? "" : b.status}</b><span class="score"></span></div>
+<div class="board"><div class="eval" title="Engine eval (white's side fills from the bottom)"></div><iframe src="${embedUrl(b)}" title="Board ${b.boardNo}: ${b.name}"></iframe></div></div>`,
       )}</div>`
     : d.error ? "" : html`<p class="muted">Pairings not published yet.</p>`}`;
 
@@ -164,13 +191,16 @@ const grid = (n: number, d: RoundData) => html`<div id="grid" hx-get="/round/${n
 ${SECTIONS.map((s) => section(s, d[s]))}</div>`;
 
 const page = (n: number, d: RoundData) =>
-  layout(`${TEAM} – Olympiad Round ${n}`, html`<h1>${TEAM} at the Chess Olympiad</h1>${nav(n)}${grid(n, d)}
-<p class="muted"><small>Boards refresh every minute. <a href="/admin/round/${n}">Admin</a></small></p>`);
+  layout(
+    `${TEAM} – Olympiad Round ${n}`,
+    html`<header><h1>${TEAM} at the Chess Olympiad</h1>${nav(n)}</header>${grid(n, d)}<script>${raw(EVAL_JS)}</script>`,
+    `data-round="${n}"`,
+  );
 
 const adminPage = (n: number, d: RoundData, ov: Overrides[string], msg = "") =>
-  layout(`Admin – Round ${n}`, html`<h1>Admin – Round ${n}</h1>${nav(n, "/admin/round")}
+  layout(`Admin – Round ${n}`, html`<header><h1>Admin – Round ${n}</h1>${nav(n, "/admin/round")}</header>
 ${msg ? html`<p class="err">${msg}</p>` : ""}
-${SECTIONS.map((s) => html`<h2>${s} <span class="badge ${d[s].manual ? "manual" : ""}">${d[s].manual ? "manual" : "auto"}</span></h2>
+${SECTIONS.map((s) => html`<h2>${s} <span class="chip">${d[s].manual ? "manual" : "auto"}</span></h2>
 <p class="muted">Currently showing: ${d[s].boards.length ? d[s].boards.map((b) => `${b.boardNo}. ${b.name} [${b.status}]`).join(" · ") : "nothing"} ${d[s].error ?? ""}</p>
 <form class="sec" method="post" action="/admin/round/${n}/${s}">
 ${[0, 1, 2, 3].map((i) => html`<input name="b${i}" placeholder="Board ${i + 1}: paste Lichess game URL or roundId/gameId" value="${ov?.[s]?.[i] ? `${ov[s]![i].roundId}/${ov[s]![i].gameId}` : ""}">`)}
@@ -197,6 +227,13 @@ app.get("/round/:n/grid", async (c) => {
   if (!n) return c.notFound();
   const d = await boards(n);
   return c.req.query("h") === hashOf(d) ? c.body(null, 204) : c.html(grid(n, d));
+});
+
+app.get("/round/:n/fens", async (c) => {
+  const n = roundNo(c.req.param("n"));
+  if (!n) return c.notFound();
+  const d = await boards(n);
+  return c.json(Object.fromEntries(SECTIONS.flatMap((s) => d[s].boards.filter((b) => b.fen).map((b) => [b.gameId, b.fen]))));
 });
 
 app.use("/admin/*", async (c, next) => {
