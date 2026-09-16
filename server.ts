@@ -24,7 +24,7 @@ type TourJson = { tour: { id: string; name: string }; rounds: { id: string; name
 // before ttl elapses, so a Lichess 429 never turns into a retry storm. Lichess asks for sequential requests: callers loop, no Promise.all.
 const cache = new Map<string, { t: number; p: Promise<any>; ok?: any }>();
 let slot = 0; // real fetches are spaced ≥200 ms apart; a cold start makes ~18 and Lichess 429s a tight burst
-const paced = (url: string) => ((slot = Math.max(slot + 200, Date.now())), Bun.sleep(slot - Date.now()).then(() => fetch(url)));
+const paced = (url: string) => ((slot = Math.max(slot + 200, Date.now())), Bun.sleep(slot - Date.now()).then(() => (console.log("fetch", url.slice(API.length)), fetch(url))));
 export function get<T>(url: string, ttl = 60_000): Promise<T> {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.t < ttl) return hit.p;
@@ -39,7 +39,7 @@ export function get<T>(url: string, ttl = 60_000): Promise<T> {
 const getRound = (id: string) => get<RoundJson>(`${API}/-/-/${id}`);
 const getTour = (id: string) => get<TourJson>(`${API}/${id}`, 600_000);
 
-export type Board = { boardNo: number; roundId: string; gameId: string; name: string; status: string; fen?: string; tourName?: string };
+export type Board = { boardNo: number; roundId: string; gameId: string; name: string; status: string; fen?: string };
 const embedUrl = (b: Board) => `https://lichess.org/embed/broadcast/-/-/${b.roundId}/${b.gameId}`;
 const gameUrl = (b: Board) => `https://lichess.org/broadcast/-/-/${b.roundId}/${b.gameId}`;
 
@@ -86,34 +86,35 @@ async function writeOverrides(ov: Overrides) {
 type SectionData = { boards: Board[]; manual: boolean; error?: string };
 type RoundData = Record<Section, SectionData>;
 
+// Detection (9 round fetches) runs once per round and is remembered; afterwards only the 1–2 rounds ${TEAM}
+// plays in are polled. An empty result (pairings not out yet) is retried after 5 min.
+const found = new Map<string, { t: number; refs: Ref[] }>();
+async function autoRefs(n: number, s: Section): Promise<Ref[]> {
+  const hit = found.get(`${n}:${s}`);
+  if (hit && (hit.refs.length || Date.now() - hit.t < 300_000)) return hit.refs;
+  const res: Record<Section, Ref[]> = { open: [], women: [] };
+  for (const r of (await allRounds()).filter((r) => r.n === n)) {
+    const rj = await getRound(r.roundId);
+    res[r.tourName.includes("Women") ? "women" : "open"].push(...pickFed(rj.games, FED, r.roundId).map(({ roundId, gameId }) => ({ roundId, gameId })));
+  }
+  for (const k of SECTIONS) found.set(`${n}:${k}`, { t: Date.now(), refs: res[k] });
+  return res[s];
+}
+
 async function boards(n: number): Promise<RoundData> {
   const ov = (await readOverrides())[n] ?? {};
   const out = {} as RoundData;
-  let auto: Promise<Board[]> | undefined; // shared by both sections, computed once
-  const detect = () =>
-    (auto ??= allRounds().then(async (rs) => {
-      const out: Board[] = [];
-      for (const r of rs.filter((r) => r.n === n)) {
-        const rj = await getRound(r.roundId);
-        out.push(...pickFed(rj.games, FED, rj.round.id).map((b) => ({ ...b, tourName: rj.tour.name })));
-      }
-      return out;
-    }));
   for (const s of SECTIONS) {
     try {
-      if (ov[s]) {
-        const bs: Board[] = [];
-        for (const [i, ref] of ov[s]!.entries()) {
-          const r = await getRound(ref.roundId);
-          const g = r.games.find((g) => g.id === ref.gameId);
-          bs.push({ boardNo: i + 1, ...ref, name: g?.name ?? "(game not found in round)", status: g?.status ?? "?", fen: g?.fen, tourName: r.tour.name });
-        }
-        out[s] = { boards: bs, manual: true };
-      } else {
-        const all = await detect();
-        const mine = all.filter((b) => (b.tourName?.includes("Women") ? "women" : "open") === s);
-        out[s] = { boards: mine.map((b, i) => ({ ...b, boardNo: i + 1 })), manual: false };
+      const refs = ov[s] ?? (await autoRefs(n, s));
+      const bs: Board[] = [];
+      for (const [i, ref] of refs.entries()) {
+        const r = await getRound(ref.roundId);
+        const g = r.games.find((g) => g.id === ref.gameId);
+        if (!g && !ov[s]) found.delete(`${n}:${s}`); // game ids changed (source re-created the games): re-detect next time
+        bs.push({ boardNo: i + 1, ...ref, name: g?.name ?? "(game not found in round)", status: g?.status ?? "?", fen: g?.fen });
       }
+      out[s] = { boards: bs, manual: !!ov[s] };
     } catch (e) {
       out[s] = { boards: [], manual: !!ov[s], error: String(e) };
     }
