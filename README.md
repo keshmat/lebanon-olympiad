@@ -21,6 +21,18 @@ bun test
 | `TEAM` | `Lebanon` | Display name |
 | `DATA_DIR` | `data` | Where `overrides.json` lives. Mount a volume here in production |
 
+## Code map
+
+| File | Owns |
+|---|---|
+| `server.ts` | The Hono app: middleware, routes, static files, Bun export. Start here. |
+| `views.ts` | Every HTML template. The htmx round-trip is documented on `grid()`. |
+| `lichess.ts` | Talking to Lichess: cached, paced fetch; finding the federation's boards. |
+| `overrides.ts` | The admin overrides file and URL parsing. |
+| `config.ts` | Environment variables. |
+| `public/eval.js` | Browser-side Stockfish worker that paints the eval bars. |
+| `public/style.css` | Layout on top of missing.css. |
+
 ## How it works
 
 - `/` redirects to the latest round that has started.
