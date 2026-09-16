@@ -189,14 +189,14 @@ app.get("/", async (c) => {
 
 app.get("/round/:n", async (c) => {
   const n = roundNo(c.req.param("n"));
-  return n ? c.html(page(n, await boards(n)), 200) : c.notFound();
+  return n ? c.html(page(n, await boards(n))) : c.notFound();
 });
 
 app.get("/round/:n/grid", async (c) => {
   const n = roundNo(c.req.param("n"));
   if (!n) return c.notFound();
   const d = await boards(n);
-  return c.req.query("h") === hashOf(d) ? c.body(null, 204) : c.html(grid(n, d), 200);
+  return c.req.query("h") === hashOf(d) ? c.body(null, 204) : c.html(grid(n, d));
 });
 
 app.use("/admin/*", async (c, next) => {
@@ -208,7 +208,7 @@ app.get("/admin/round/:n", async (c) => {
   const n = roundNo(c.req.param("n"));
   if (!n) return c.notFound();
   const [d, ov] = await Promise.all([boards(n), readOverrides()]);
-  return c.html(adminPage(n, d, ov[n] ?? {}), 200);
+  return c.html(adminPage(n, d, ov[n] ?? {}));
 });
 
 app.post("/admin/round/:n/:s", async (c) => {
