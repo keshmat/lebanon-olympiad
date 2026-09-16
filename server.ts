@@ -134,9 +134,10 @@ nav a{display:inline-block;padding:.05rem .45rem;margin:.1rem .05rem;border-radi
 nav a[aria-current]{background:var(--accent);color:var(--bg)}
 section{width:max-content;max-width:100%;margin:0 auto!important;padding:0!important}
 body h2{font-size:1rem;margin:.4rem 0 .15rem!important}
-/* ponytail: --h fits two rows of four on a desktop viewport. The Lichess embed needs ~92px above/below the board for
-   the player bars, so board width = --h - 92px. Below 900px --h is ignored and boards fill the width. */
-.grid{--h:max(300px,min(calc((100vh - 13.5rem) / 2),calc((100vw - 6rem) / 4 - 1.5rem + 92px)));display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem 1rem}
+/* ponytail: --h fits two rows of four on a tall viewport, but never below 492px (a 400px-wide board: narrower and the
+   embed clips player names next to the clock), so laptops scroll a little. The embed needs ~92px above/below the board
+   for the player bars, so board width = --h - 92px. Below 900px --h is ignored and boards fill the width. */
+.grid{--h:min(max(492px,calc((100vh - 13.5rem) / 2)),calc((100vw - 6rem) / 4 - 1.5rem + 92px));display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem 1rem}
 .card{display:flex;flex-direction:column;gap:.1rem}
 .cap{font-size:.8rem;display:flex;gap:.5rem;align-items:baseline;white-space:nowrap;width:calc(var(--h) - 92px + 1.2rem)}
 .cap .name{overflow:hidden;text-overflow:ellipsis;flex:1}
@@ -145,7 +146,7 @@ body h2{font-size:1rem;margin:.4rem 0 .15rem!important}
 .board iframe{height:100%;width:calc(var(--h) - 92px);border:0;border-radius:6px;background:var(--box-bg)}
 .eval{width:.6rem;border-radius:3px;background:#403d39;position:relative;overflow:hidden;flex:none}
 .eval::after{content:"";position:absolute;inset:auto 0 0 0;height:var(--w,50%);background:#f0ede6;transition:height .6s}
-@media (max-width:900px){section{width:auto}.grid{--h:auto}.card{width:100%}.cap{width:auto}.board{height:auto}.board iframe{width:calc(100% - .9rem);aspect-ratio:1/1.28}}
+@media (max-width:900px){body{padding:.4rem 1.25rem 1rem}section{width:auto}.grid{--h:auto;gap:1.75rem}.card{width:100%}.cap{width:auto}.board{height:auto}.board iframe{width:calc(100% - .9rem);aspect-ratio:1/1.28}}
 .muted{opacity:.7}.err{color:var(--bad-fg)}
 form.sec{display:grid;gap:.4rem;max-width:720px;margin-bottom:1.5rem}
 `;
