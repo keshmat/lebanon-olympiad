@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch server.ts",
-    "start": "bun server.ts",
+    "dev": "bun --watch server.tsx",
+    "start": "bun server.tsx",
     "test": "bun test"
   },
   "dependencies": {

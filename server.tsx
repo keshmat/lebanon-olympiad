@@ -11,13 +11,14 @@
  *   GET  /admin/round/N          → form per section
  *   POST /admin/round/N/:section → save or clear that section's override, redirect back
  */
+/** @jsxImportSource hono/jsx */
 import { Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
 import { serveStatic } from "hono/bun";
 import { ADMIN_PASSWORD, PORT, ROUNDS } from "./config.ts";
 import { boardsForRound, currentRoundNo, gridHash } from "./lichess.ts";
 import { parseGameRef, readOverrides, SECTIONS, writeOverrides, type GameRef, type Section } from "./overrides.ts";
-import { adminPage, grid, roundPage } from "./views.ts";
+import { AdminPage, Grid, RoundPage, page } from "./views.tsx";
 
 const app = new Hono();
 
@@ -35,7 +36,7 @@ app.get("/", async (context) => context.redirect(`/round/${await currentRoundNo(
 app.get("/round/:n", async (context) => {
   const roundNo = parseRoundNo(context.req.param("n"));
   if (!roundNo) return context.notFound();
-  return context.html(roundPage(roundNo, await boardsForRound(roundNo)));
+  return context.html(page(<RoundPage roundNo={roundNo} data={await boardsForRound(roundNo)} />));
 });
 
 /**
@@ -47,7 +48,7 @@ app.get("/round/:n/grid", async (context) => {
   if (!roundNo) return context.notFound();
   const data = await boardsForRound(roundNo);
   if (context.req.query("h") === gridHash(data)) return context.body(null, 204);
-  return context.html(grid(roundNo, data));
+  return context.html(<Grid roundNo={roundNo} data={data} />);
 });
 
 /** Current positions for the browser-side engine. Served from the same cache as the page, so no extra Lichess calls. */
@@ -71,7 +72,7 @@ app.get("/admin/round/:n", async (context) => {
   const roundNo = parseRoundNo(context.req.param("n"));
   if (!roundNo) return context.notFound();
   const [data, overrides] = await Promise.all([boardsForRound(roundNo), readOverrides()]);
-  return context.html(adminPage(roundNo, data, overrides[roundNo] ?? {}));
+  return context.html(page(<AdminPage roundNo={roundNo} data={data} overrides={overrides[roundNo] ?? {}} />));
 });
 
 app.post("/admin/round/:n/:section", async (context) => {
@@ -86,7 +87,8 @@ app.post("/admin/round/:n/:section", async (context) => {
   const overrides = await readOverrides();
   if (refs.some((ref) => !ref)) {
     const bad = inputs.filter((_, index) => !refs[index]).join(", ");
-    return context.html(adminPage(roundNo, await boardsForRound(roundNo), overrides[roundNo] ?? {}, `Could not parse: ${bad}. Nothing saved.`), 400);
+    const data = await boardsForRound(roundNo);
+    return context.html(page(<AdminPage roundNo={roundNo} data={data} overrides={overrides[roundNo] ?? {}} message={`Could not parse: ${bad}. Nothing saved.`} />), 400);
   }
 
   overrides[roundNo] ??= {};

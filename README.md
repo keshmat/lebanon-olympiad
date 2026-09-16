@@ -25,8 +25,8 @@ bun test
 
 | File | Owns |
 |---|---|
-| `server.ts` | The Hono app: middleware, routes, static files, Bun export. Start here. |
-| `views.ts` | Every HTML template. The htmx round-trip is documented on `grid()`. |
+| `server.tsx` | The Hono app: middleware, routes, static files, Bun export. Start here. |
+| `views.tsx` | Every template as a Hono JSX component, server-rendered to a string. The htmx round-trip is documented on `Grid`. |
 | `lichess.ts` | Talking to Lichess: cached, paced fetch; finding the federation's boards. |
 | `overrides.ts` | The admin overrides file and URL parsing. |
 | `config.ts` | Environment variables. |
