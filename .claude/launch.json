@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "dev", "runtimeExecutable": "bun", "runtimeArgs": ["--watch", "server.ts"], "port": 3210, "env": { "ADMIN_PASSWORD": "dev", "PORT": "3210" } }
+  ]
+}
