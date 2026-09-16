@@ -131,11 +131,11 @@ body>header{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem 1.5rem;ma
 header h1{font-size:1.3rem;margin:0}
 nav a{display:inline-block;padding:.05rem .45rem;margin:.1rem .05rem;border-radius:4px;text-decoration:none;color:inherit}
 nav a[aria-current]{background:var(--accent);color:var(--bg)}
-body h2{font-size:1rem;margin:.4rem 0 .15rem;display:flex;gap:.6rem;align-items:baseline}
-h2 .chip{font-size:.7rem}
+section{width:max-content;max-width:100%;margin:0 auto!important;padding:0!important}
+body h2{font-size:1rem;margin:.4rem 0 .15rem!important}
 /* ponytail: --h fits two rows of four on a desktop viewport. The Lichess embed needs ~92px above/below the board for
    the player bars, so board width = --h - 92px. Below 900px --h is ignored and boards fill the width. */
-.grid{--h:min(calc((100vh - 13.5rem) / 2),calc((100vw - 6rem) / 4 - 1.5rem + 92px));display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem 1rem}
+.grid{--h:max(300px,min(calc((100vh - 13.5rem) / 2),calc((100vw - 6rem) / 4 - 1.5rem + 92px)));display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem 1rem}
 .card{display:flex;flex-direction:column;gap:.1rem}
 .cap{font-size:.8rem;display:flex;gap:.5rem;align-items:baseline;white-space:nowrap;width:calc(var(--h) - 92px + 1.2rem)}
 .cap .name{overflow:hidden;text-overflow:ellipsis;flex:1}
@@ -144,7 +144,7 @@ h2 .chip{font-size:.7rem}
 .board iframe{height:100%;width:calc(var(--h) - 92px);border:0;border-radius:6px;background:var(--box-bg)}
 .eval{width:.6rem;border-radius:3px;background:#403d39;position:relative;overflow:hidden;flex:none}
 .eval::after{content:"";position:absolute;inset:auto 0 0 0;height:var(--w,50%);background:#f0ede6;transition:height .6s}
-@media (max-width:900px){.grid{--h:auto}.card{width:100%}.cap{width:auto}.board{height:auto}.board iframe{width:calc(100% - .9rem);aspect-ratio:1/1.28}}
+@media (max-width:900px){section{width:auto}.grid{--h:auto}.card{width:100%}.cap{width:auto}.board{height:auto}.board iframe{width:calc(100% - .9rem);aspect-ratio:1/1.28}}
 .muted{opacity:.7}.err{color:var(--bad-fg)}
 form.sec{display:grid;gap:.4rem;max-width:720px;margin-bottom:1.5rem}
 `;
@@ -174,18 +174,16 @@ const layout = (title: string, body: any, attrs = "") => html`<!doctype html>
 const nav = (n: number, base = "/round") =>
   html`<nav>${Array.from({ length: ROUNDS }, (_, i) => i + 1).map((i) => html`<a href="${base}/${i}" ${i === n ? raw('aria-current="page"') : ""}>R${i}</a>`)}</nav>`;
 
-const sectionName = (d: SectionData) => d.boards[0]?.tourName?.split("|").slice(-2).join("|").trim();
-
-const section = (s: Section, d: SectionData) => html`
-<h2>${s === "open" ? "Open" : "Women"} ${sectionName(d) ? html`<span class="chip">${sectionName(d)}</span>` : ""}</h2>
+const section = (s: Section, d: SectionData) => html`<section>
+<h2>${s === "open" ? "Open" : "Women"}</h2>
 ${d.error ? html`<p class="err">${d.error}</p>` : ""}
 ${d.boards.length
     ? html`<div class="grid">${d.boards.map(
         (b) => html`<div class="card" data-game="${b.gameId}">
-<div class="cap"><b><a href="${gameUrl(b)}" target="_blank" rel="noopener">Board ${b.boardNo} ↗</a></b><span class="name">${b.name}</span><b>${b.status === "*" ? "" : b.status}</b><span class="score"></span></div>
+<div class="cap"><b><a href="${gameUrl(b)}" target="_blank" rel="noopener">Board ${b.boardNo} ↗</a></b><span class="name"></span><b>${b.status === "*" ? "" : b.status}</b><span class="score"></span></div>
 <div class="board"><div class="eval" title="Engine eval (white's side fills from the bottom)"></div><iframe src="${embedUrl(b)}" title="Board ${b.boardNo}: ${b.name}"></iframe></div></div>`,
       )}</div>`
-    : d.error ? "" : html`<p class="muted">Pairings not published yet.</p>`}`;
+    : d.error ? "" : html`<p class="muted">Pairings not published yet.</p>`}</section>`;
 
 const grid = (n: number, d: RoundData) => html`<div id="grid" hx-get="/round/${n}/grid?h=${hashOf(d)}" hx-trigger="every 60s" hx-swap="outerHTML">
 ${SECTIONS.map((s) => section(s, d[s]))}</div>`;
