@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Simplified Lebanese flag: red bands, white centre, cedar silhouette -->
+  <rect width="64" height="64" rx="12" fill="#fff"/>
+  <path d="M0 12A12 12 0 0 1 12 0h40a12 12 0 0 1 12 12v4H0zM0 48h64v4a12 12 0 0 1-12 12H12A12 12 0 0 1 0 52z" fill="#ed1c24"/>
+  <path d="M32 17l-7 9h4l-6 8h5l-7 8h9v5h4v-5h9l-7-8h5l-6-8h4z" fill="#00a651"/>
+</svg>

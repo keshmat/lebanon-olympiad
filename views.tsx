@@ -18,12 +18,36 @@ import { embedUrl, gameUrl, gridHash, type Board, type RoundData, type SectionDa
 import { SECTIONS, type Overrides, type Section } from "./overrides.ts";
 
 /** Page shell: missing.css for base styles, htmx, our stylesheet. */
-const Layout = ({ title, round, children }: { title: string; round?: number; children?: unknown }) => (
+const DESCRIPTION = `Live boards of ${TEAM}'s Open and Women's teams at the 46th FIDE Chess Olympiad, Samarkand 2026, round by round.`;
+
+/** Lichess renders any position as a board image; used for link previews. */
+const boardImageUrl = (fen: string) => `https://lichess1.org/export/fen.gif?fen=${encodeURIComponent(fen)}&theme=brown&piece=cburnett`;
+
+/**
+ * Link-preview image: board 1 of the Open team. A round whose pairings are not out yet
+ * reuses the last image this process rendered (typically the previous round's final position),
+ * and a cold start with nothing to show falls back to the starting position.
+ */
+let lastImage = boardImageUrl("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+const previewImage = (data: RoundData) => {
+  const fen = data.open.boards[0]?.fen;
+  if (fen) lastImage = boardImageUrl(fen);
+  return lastImage;
+};
+
+const Layout = ({ title, round, image = lastImage, children }: { title: string; round?: number; image?: string; children?: unknown }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width,initial-scale=1" />
       <title>{title}</title>
+      <meta name="description" content={DESCRIPTION} />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={DESCRIPTION} />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content={image} />
+      <meta name="theme-color" content="#ed1c24" />
+      <link rel="icon" href="/public/favicon.svg" type="image/svg+xml" />
       <link rel="stylesheet" href="https://unpkg.com/missing.css@1.3.0" />
       <link rel="stylesheet" href="/public/style.css" />
       <script src="https://unpkg.com/htmx.org@2"></script>
@@ -109,7 +133,7 @@ export const Grid = ({ roundNo, data }: { roundNo: number; data: RoundData }) =>
 
 /** The public round page. */
 export const RoundPage = ({ roundNo, data }: { roundNo: number; data: RoundData }) => (
-  <Layout title={`${TEAM} – Olympiad Round ${roundNo}`} round={roundNo}>
+  <Layout title={`${TEAM} – Olympiad Round ${roundNo}`} round={roundNo} image={previewImage(data)}>
     <header>
       <h1>{TEAM} at the Chess Olympiad</h1>
       <RoundNav roundNo={roundNo} />
