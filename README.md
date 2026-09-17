@@ -31,13 +31,14 @@ bun test
 | `overrides.ts` | The admin overrides file and URL parsing. |
 | `config.ts` | Environment variables. |
 | `public/eval.js` | Browser-side Stockfish worker that paints the eval bars. |
+| `public/stockfish-19-lite-single.{js,wasm}` | The engine, unmodified from the stockfish.js v19.0.0 release. |
 | `public/style.css` | Layout on top of missing.css. |
 
 ## How it works
 
 - `/` redirects to the latest round that has started.
 - `/round/N` looks through round N of every section once, keeps the games with a `FED` player, and remembers them. After that only the one or two rounds the team plays in are fetched, once a minute (about 2 Lichess requests/min; 18 on a cold start, spaced 200 ms apart). The page polls every 60 s and only re-renders when a board or result changes. Every real Lichess fetch is logged to stdout.
-- Eval bars: the browser runs Stockfish 10 (WASM, ~420 KB from jsDelivr) in a worker and evaluates each board's FEN from `/round/N/fens` at depth 12, once a minute. No server CPU, no extra Lichess calls.
+- Eval bars: the browser runs Stockfish 19 (the lite single-threaded WASM build, ~1.7 MB, GPLv3, from [stockfish.js](https://github.com/nmrugg/stockfish.js) releases, vendored in `public/`) in a worker and evaluates each board's FEN from `/round/N/fens` at depth 12, once a minute. No server CPU, no extra Lichess calls.
 - Styling is [missing.css](https://missing.style) with a serif font. Boards are at least 400 px wide (narrower and the embed clips names next to the clock); two rows of four fit a tall monitor and scroll a little on laptops. Under 900 px it is one full-width column.
 - `/admin/round/N` shows what auto-detection found and lets you paste up to 4 Lichess game URLs (or `roundId/gameId`) per section. Leave all four empty to return to auto.
 - No cron, no background jobs, no database. Lichess streams the moves straight into the embeds.
