@@ -57,6 +57,37 @@ const Layout = ({ title, round, image = lastImage, children }: { title: string; 
   </html>
 );
 
+/**
+ * The squad at Beirut airport on the way out, cropped to a banner.
+ *
+ * Two placements, one file, so the browser fetches it once. On desktop a small badge
+ * sits at the end of the header and links down to the full photo and its caption in the
+ * footer. On phones the badge stretches to a full-width banner and the stylesheet hides
+ * the footer copy, which would otherwise repeat the same picture eight boards later.
+ *
+ * The source is a phone photo only 896px wide, which is what the sizing is built around:
+ * the badge stays small on desktop, where there is no resolution to spare, and the photo
+ * only goes edge to edge on phones, whose viewports are narrow enough that 896px is
+ * roughly 2x density. width/height carry the intrinsic ratio so nothing reflows on load.
+ */
+const TEAM_PHOTO = "/public/team.jpg";
+const TEAM_ALT = `${TEAM}'s Olympiad delegation at Beirut airport`;
+
+const TeamBadge = () => (
+  <a class="badge" href="#team" title={TEAM_ALT}>
+    <img src={TEAM_PHOTO} alt={TEAM_ALT} width="896" height="490" />
+  </a>
+);
+
+const TeamPhoto = () => (
+  <footer>
+    <figure id="team">
+      <img src={TEAM_PHOTO} alt={TEAM_ALT} width="896" height="490" loading="lazy" />
+      <figcaption>{TEAM_ALT}, 14 September 2026.</figcaption>
+    </figure>
+  </footer>
+);
+
 /** R1 … R11 links; the current one gets aria-current, which the stylesheet highlights. */
 const RoundNav = ({ roundNo, basePath = "/round" }: { roundNo: number; basePath?: string }) => (
   <nav>
@@ -137,8 +168,10 @@ export const RoundPage = ({ roundNo, data }: { roundNo: number; data: RoundData 
     <header>
       <h1>{TEAM} at the Chess Olympiad</h1>
       <RoundNav roundNo={roundNo} />
+      <TeamBadge />
     </header>
     <Grid roundNo={roundNo} data={data} />
+    <TeamPhoto />
     <script src="/public/eval.js"></script>
   </Layout>
 );
