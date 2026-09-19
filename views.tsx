@@ -67,9 +67,10 @@ const Layout = ({ title, round, image = lastImage, children }: { title: string; 
  * stylesheet hides the footer copy.
  *
  * That leaves the desktop header with nothing Lebanese on it, which the cedar fixes. It
- * is the favicon reused: vector, so it stays sharp at any size, and legible at 1.75rem in
- * a way a shrunken group photo never was. Decorative beside the word Lebanon, hence the
- * empty alt.
+ * is the favicon reused as a mark at the far right of the header row: vector, so it stays
+ * sharp at any size, and legible small in a way a shrunken group photo never was. Phones
+ * drop it, since the banner right below already carries the flag at full width. The h1
+ * already says Lebanon, so the mark is decorative and its alt stays empty.
  *
  * The photo itself is a phone picture only 896px wide, which is why it only ever goes
  * edge to edge on phones, whose viewports make that roughly 2x density. width/height
@@ -169,10 +170,9 @@ export const Grid = ({ roundNo, data }: { roundNo: number; data: RoundData }) =>
 export const RoundPage = ({ roundNo, data }: { roundNo: number; data: RoundData }) => (
   <Layout title={`${TEAM} – Olympiad Round ${roundNo}`} round={roundNo} image={previewImage(data)}>
     <header>
-      <h1>
-        <Cedar /> {TEAM} at the Chess Olympiad
-      </h1>
+      <h1>{TEAM} at the Chess Olympiad</h1>
       <RoundNav roundNo={roundNo} />
+      <Cedar />
       <TeamBanner />
     </header>
     <Grid roundNo={roundNo} data={data} />
