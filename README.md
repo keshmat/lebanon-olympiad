@@ -33,6 +33,7 @@ bun test
 | `public/eval.js` | Browser-side Stockfish worker that paints the eval bars. |
 | `public/stockfish-19-lite-single.{js,wasm}` | The engine, unmodified from the stockfish.js v19.0.0 release. |
 | `public/style.css` | Layout on top of missing.css. |
+| `public/team.jpg` | Team photo at Beirut airport, cropped to a 896x490 banner. Shown once per viewport: in the footer on desktop, in the header on phones. |
 
 ## How it works
 

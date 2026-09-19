@@ -57,6 +57,41 @@ const Layout = ({ title, round, image = lastImage, children }: { title: string; 
   </html>
 );
 
+/**
+ * Lebanon above the fold, and the squad further down.
+ *
+ * The photo shows once per viewport, wherever that viewport will actually reach it.
+ * Desktop pages run about one and a half screens, so the footer shot sits just below the
+ * Women's boards and anyone scrolling to their second row lands on it. Phone pages run
+ * nearly five screens, so there the photo rides up into the header instead and the
+ * stylesheet hides the footer copy.
+ *
+ * That leaves the desktop header with nothing Lebanese on it, which the cedar fixes. It
+ * is the favicon reused as a mark at the far right of the header row: vector, so it stays
+ * sharp at any size, and legible small in a way a shrunken group photo never was. Phones
+ * drop it, since the banner right below already carries the flag at full width. The h1
+ * already says Lebanon, so the mark is decorative and its alt stays empty.
+ *
+ * The photo itself is a phone picture only 896px wide, which is why it only ever goes
+ * edge to edge on phones, whose viewports make that roughly 2x density. width/height
+ * carry the intrinsic ratio so nothing reflows on load.
+ */
+const TEAM_PHOTO = "/public/team.jpg";
+const TEAM_ALT = `${TEAM}'s Olympiad delegation at Beirut airport`;
+
+const Cedar = () => <img class="cedar" src="/public/favicon.svg" alt="" width="64" height="64" />;
+
+const TeamBanner = () => <img class="banner" src={TEAM_PHOTO} alt={TEAM_ALT} width="896" height="490" />;
+
+const TeamPhoto = () => (
+  <footer>
+    <figure>
+      <img src={TEAM_PHOTO} alt={TEAM_ALT} width="896" height="490" loading="lazy" />
+      <figcaption>{TEAM_ALT}, 14 September 2026.</figcaption>
+    </figure>
+  </footer>
+);
+
 /** R1 … R11 links; the current one gets aria-current, which the stylesheet highlights. */
 const RoundNav = ({ roundNo, basePath = "/round" }: { roundNo: number; basePath?: string }) => (
   <nav>
@@ -137,8 +172,11 @@ export const RoundPage = ({ roundNo, data }: { roundNo: number; data: RoundData 
     <header>
       <h1>{TEAM} at the Chess Olympiad</h1>
       <RoundNav roundNo={roundNo} />
+      <Cedar />
+      <TeamBanner />
     </header>
     <Grid roundNo={roundNo} data={data} />
+    <TeamPhoto />
     <script src="/public/eval.js"></script>
   </Layout>
 );

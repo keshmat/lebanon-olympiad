@@ -35,6 +35,26 @@ body h2 { font-size: 1rem; margin: .4rem 0 .15rem !important; }
 .eval { width: .6rem; border-radius: 3px; background: #403d39; position: relative; overflow: hidden; flex: none; }
 .eval::after { content: ""; position: absolute; inset: auto 0 0 0; height: var(--w, 50%); background: #f0ede6; transition: height .6s; }
 
+/*
+ * The cedar is the favicon reused as a header mark; margin-left:auto parks it at the far
+ * right of the round links, in space that was empty anyway. At 2.25rem it is barely taller
+ * than the row already was, which is why the allowance above is the original 13.5rem.
+ * align-self overrides the header's baseline alignment, which would hang it off the text.
+ */
+.cedar { margin-left: auto; align-self: center; height: 2.25rem; width: auto; }
+
+/*
+ * The photo shows once per viewport. On desktop that is the footer, about one screen down,
+ * right under the Women's boards. The header banner below is phones only.
+ */
+.banner { display: none; }
+
+/* missing.css styles <footer> as a box, same as <header>; undo that. */
+body > footer { margin: 1.5rem 0 0; padding: 1.25rem 0 0; border: 0; background: none; text-align: center; }
+body > footer figure { margin: 0; }
+body > footer img { width: 100%; max-width: 720px; height: auto; border-radius: 8px; }
+body > footer figcaption { font-size: .8rem; opacity: .7; margin: .4rem 0 0; }
+
 /* Phones: one full-width board per row, generous spacing between them. */
 @media (max-width: 900px) {
   body { padding: .4rem 1.25rem 1rem; }
@@ -44,6 +64,9 @@ body h2 { font-size: 1rem; margin: .4rem 0 .15rem !important; }
   .cap { width: auto; }
   .board { height: auto; }
   .board iframe { width: calc(100% - .9rem); aspect-ratio: 1 / 1.28; }
+  .cedar { display: none; }
+  .banner { display: block; width: 100%; height: auto; border-radius: 6px; }
+  body > footer { display: none; }
 }
 
 .muted { opacity: .7; }
